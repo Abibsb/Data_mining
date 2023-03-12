@@ -1,0 +1,337 @@
+---
+title: "Trabajo Final - Data Mining"
+author: "I. Fenoy - A. Stricker"
+date: "2022-07-18"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Abstract
+
+::: {align="center"}
+La plantación de árboles en tierras de ganadería es una práctica común para evitar la erosión que el pastoreo y el uso continuo conllevan. El eucalipto es una clase de árbol muy presente a lo largo de toda Australia y Nueva Zelanda, donde se plantan para generar refugios naturales y conservar los suelos. En 1979 se hizo una plantación controlada de eucaliptos en zonas cercanas a tierras de pastoreo, que fue evaluada exhaustivamente en 1986 y 1991. De acuerdo con la evaluación de ciertas características de los árboles y el estado de las tierras, diferentes investigadores seleccionaron grupos de *Eucalyptus* para proteger a los suelos de la erosión. Usando herramientas de *data mining* y el *dataset* generado en la evaluación de 1991, se pudo comprobar que especis *E. amplifolia*, *E. coccifera* y *E. pulchella*son las que mayor protección de suelos proveen. Las variables diámetro de la base del árbol y altura están fuertemente relacionadas con la conservación de la calidad de las tierras.
+:::
+
+------------------------------------------------------------------------
+
+## Introducción
+
+Regiones montañosas en la Isla Norte de Nueva Zelanda fueron taladas de su bosque nativo para ser usada en agricultura de pastoreo. El problema en estas prácticas surge ya que más del 25% de la isla es propensa a la erosión. Para evitar que se erosione y quede inutilizable, las tierras son reforestadas con árboles resistentes a sequías. Por cuestiones utilitarias los más usados son los del género *Eucalyptus*. Ha habido algunas pruebas de control de calidad de suelo en lugares de plantaciones de eucaliptos donde se observaron buenos resultados. Aun así no hay una utilización intensiva debido a la ausencia de una evaluación sistemática. Uno de los primeros trabajos exhaustivos surgió en 1986 por parte de Hathaway y colaboradores, donde se midieron diversas características de los eucaliptos y el estado del suelo para determinar las mejores especies para conservar las tierras afectadas. Estos investigadores definieron la altura de los árboles como la principal medida de *performance*. Una lista de especies surgió de la comparativa entre altura y conservación de suelos, mostrado en la tabla 1. A pesar de que hay variedad de especies disponibles para su uso la prevención de erosión, algunas de ellas también fueron clasificadas como potenciales generadores de erosión al desestabilizar la tierra de las regiones de interés.
+
+| Adecuados para todo tipo de terreno | Potenciales desetabilizadores de terreno |
+|:--------------------------------:|:------------------------------------:|
+|         Eucalyptus cordata          |               E.fastigata                |
+|            E. fastigata             |              E.fraxinoides               |
+|           E. fraxinoides            |                E. obliqua                |
+|             E. obliqua              |                E. regnans                |
+|             E.pulchella             |                                          |
+|             E. regnans              |                                          |
+
+: Tabla 1
+
+Una segunda investigación de 1991 da lugar al *dataset* utilizado en este trabajo. Se midieron las mismas zonas y árboles que en el primer análisis, pero se definieron otras características como medidas de *performance*. Estos son: diámetro de la base del árbol multiplicado por su altura (DBH), altura y porcentaje de supervivencia respecto a total de árboles de esa especie plantados. En este análisis se observó que los árboles más grandes sirven para la mayoría de las zonas conservadas y de agroforestación, mientras que los de menor crecimiento son mejores para tierras de pastoreo. Se determinaron 14 especies de Eucalyptus útiles: *E. regnans, E. obliqua, E.fastigata, E. botryoides, E. botryoides x saligna, E. nitens, E.fraxinoides, E. sieberi, E. delegatensis, E. viminalis, E. globoidea, E. smithii*, y *E. oreades*. En estas exploraciones previas no se logró tener una característica clara que sirva para predecir la utilidad de los diferentes árboles para conservar el suelo; a su vez las especies seleccionadas como conservadoras varían bastante entre ambos análisis. En el presente trabajo se busca tener un panorama más exacto sobre la selección de especies y evaluación de desempeño por características. Para ello se plantean tres objetivos:
+
+-   Definir si alguna de las características mencionadas en el trabajo de 1991 está más fuertemente relacionada con la conservación del suelo que el resto.
+-   Explorar qué especies tienen una utilidad alta para la conservación del suelo en general.
+-   Analizar si existen lotes de semillas que dan utilidad alta en general, independientemente de la especie de eucalipto.
+
+Mediante minería de datos del *dataset* provisto se buscará establecer si la utilidad de estos árboles está más relacionada con las especies y por lo tanto la genética única de cada una de ellas, o si el origen de las semillas usadas en las plantaciones (en donde el cultivo y cuidado tienen mayor peso que la genética) influye en los resultados. Por último, sería más que interesante poder determinar una variable robustamente relacionada con la *perfomance* de los árboles.
+
+
+------------------------------------------------------------------------
+
+## Métodos y Resultados
+
+### Exploración de dataset
+
+Se hizo una exploración preliminar del dataset para determinar los tipos de datos disponibles y los cambios necesarios para el análisis. Se observó que ciertas variables estaban mal clasificadas, lo que impedía su uso en el trabajo. También se observaron casos de valores NA en variables del *dataset* correspondientes a características de los árboles.
+
+```{r}
+setwd("C:\\Users\\amari\\Desktop\\Mineria_de_Datos_R\\T_final/")
+eucaliptos_dataset <- read.csv(file="eucalyptus\\dataset_194_eucalyptus.csv", stringsAsFactors = F, header = T)
+#Observar dataset
+View(eucaliptos_dataset)
+#Imprimir primeras 15 filas 
+head(eucaliptos_dataset, n = 15)
+#Imprimir últimas 15 filas 
+tail(eucaliptos_dataset, n = 15)
+#Tipos de atributos disponibles
+str(eucaliptos_dataset)
+class(eucaliptos_dataset$Ht)
+#Tenemos varias columnas determinadas como "character" en cambio de "interger". Se deben convertir para poder utilizarlas en posteriores análisis.
+```
+
+### Reclasificicación de variables y armado de dataframe
+
+Se convirtieron todas las variables numéricas clasificadas como "characters" a "intergers" para poder utilizarlas.
+
+```{r, message=FALSE}
+DBH_int <-as.numeric(eucaliptos_dataset$DBH)
+Ht_int <-as.numeric(eucaliptos_dataset$Ht)
+Surv_int <-as.numeric(eucaliptos_dataset$Surv)
+Vig_int <-as.numeric(eucaliptos_dataset$Vig)
+Ins_res_int <-as.numeric(eucaliptos_dataset$Ins_res)
+Stem_Fm_int <-as.numeric(eucaliptos_dataset$Stem_Fm)
+Crown_Fm_int <-as.numeric(eucaliptos_dataset$Crown_Fm)
+Brnch_Fm_int <-as.numeric(eucaliptos_dataset$Brnch_Fm)
+eucaliptos <-data.frame(eucaliptos_dataset[,c(1:11,20)],DBH_int, Ht_int, Surv_int, Vig_int, Ins_res_int, Stem_Fm_int, Crown_Fm_int, Brnch_Fm_int)
+```
+
+```{r}
+#Probar si funcionó usando uno de los atributos que previamente era character
+class(eucaliptos$Ht_int)
+str(eucaliptos)
+#View(eucaliptos)
+#Ahora tenemos la información en el formato correcto para hacer los análisis y transformaciones pertinentes
+```
+
+### Procesamiento de dataset para análisis
+
+De acuerdo a la literatura disponible, las tres variables más relacionadas con la *performance* de los árboles en la conservación del suelo son el diámetro de la base (*DBH*), la altura (*Ht*) y la supervivencia (*Surv*). Se eliminaron valores atípicos (*outliers*) y se imputaron valores no definidos (*NA*) de las tres variables mencionadas. Para definir los *outliers* se utilizó el método de IQR. Previamente otros métodos fueron probados pero se descartaron debido a que se eliminaban más 100 entradas en el *dataset* concentradas en sólo ciertas regiones geográficas, lo que llevaría a tener resultados no significativos desde un punto de vista general.
+
+```{r}
+#Ya se puede observar que hay casos NA en el dataset. Hay que eliminarlos/imputarlos
+
+#eliminarlos: 
+nas <- is.na(eucaliptos$Utility)
+table(nas)
+nas <-is.na(eucaliptos$DBH)
+table(nas)
+nas<-is.na(eucaliptos$Ht_int)
+table(nas)
+nas<-is.na(eucaliptos$Surv_int)
+table(nas)
+#Siendo que estas características son la de mayor interés, perderíamos 94 imputs si eliminamos las entradas incompletas
+eucaliptos_completos <-complete.cases(eucaliptos)
+table(eucaliptos_completos)
+eucaliptos_imputs_completos <- na.omit(eucaliptos)
+dim(eucaliptos_imputs_completos)
+100 - (dim(eucaliptos_imputs_completos)/dim(eucaliptos)*100)
+#Se perderían 12% de las imputs. Es aceptable si están distribuidos equitativamente entre las zonas de medición
+eucaliptos_nas <- is.na(eucaliptos$Surv_int)
+table(eucaliptos_nas)
+new_DF <- subset(eucaliptos, is.na(eucaliptos$Surv_int))
+table(new_DF$Locality)
+table(eucaliptos$Locality)
+#Perderíamos todos los imputs de "Central_Poverty_Bay". Es mejor mantener esas 6 entradas. 
+
+#Imputar valores de "Surv_Int" usando la media
+Surv_int_imputados_por_media <- eucaliptos$Surv_int
+nas <- is.na(Surv_int_imputados_por_media)
+Surv_int_imputados_por_media[nas] <- mean(Surv_int_imputados_por_media, na.rm = T)
+
+#Chequear que la imputación haya funcionado
+any(is.na(Surv_int_imputados_por_media))
+eucaliptos_imputados <-data.frame(eucaliptos, Surv_int_imputados_por_media)
+#View(eucaliptos_imputados)
+
+#Ahora hay que detectar valores atípicos (outliers) y eliminarlos de las variables que nos importan
+#En el trabajo original se tomaron en cuenta los atributos "DBH", "Ht" (height) y "Surv" (survival) como criterios
+#de evaluación de utilidad. Estas son los atributos que van a ser limpiados de outliers.
+
+#Estadísticas descriptivas
+summary(eucaliptos_imputados$DBH_int)
+summary(eucaliptos_imputados$Ht_int)
+summary(eucaliptos_imputados$Surv_int_imputados_por_media)
+#Histogramas
+hist(eucaliptos_imputados$DBH_int,main="DBH", xlab="Distribución de valores DBH")
+hist(eucaliptos_imputados$Ht_int, main="Height", xlab="Distribución de valores de altura de árboles")
+hist(eucaliptos_imputados$Surv_int_imputados_por_media, main="Survival rate imputado", xlab="Distribución de valores de supervivencia")
+#Boxpltos
+boxplot(eucaliptos_imputados$DBH_int, main="DBH")
+boxplot(eucaliptos_imputados$Ht_int, main="altura de árboles")
+boxplot(eucaliptos_imputados$Surv_int_imputados_por_media, main="supervivencia imputada")
+
+#Hay que eliminar un valor atípico en DBH
+#"Ht" muestra valores atipicos en los gráficos y en la estadística hay valores mínimos y máximos lejanos a los demás.
+#Hay una entrada NA en DBH y Ht. Se va a eliminar para evitar problemas en próximos pasos.
+eucaliptos_imputados_completos <- na.omit(eucaliptos_imputados)
+summary(eucaliptos_imputados_completos$DBH_int)
+hist(eucaliptos_imputados_completos$DBH_int, main ="DBH")
+#View(eucaliptos_imputados_completos)
+eucaliptos_imputados_comp_no_outliers <- eucaliptos_imputados_comp_no_outliers <- eucaliptos_imputados_completos[eucaliptos_imputados_completos$DBH_int < 100, ]
+hist(eucaliptos_imputados_comp_no_outliers$DBH_int, main="DBH sin outliers", xlab="valores de DBH")
+#Criterio IQR boxplot
+#MejorÃ³ pero seguimos teniendo casos extremos. Probemos el criterio de IQR
+iqr <- IQR(eucaliptos_imputados_comp_no_outliers$Ht_int)
+iqr
+q   <- quantile(eucaliptos_imputados_comp_no_outliers$Ht_int)
+q
+
+#Criterio del boxplot
+casos_extremos_iqr <- eucaliptos_imputados_comp_no_outliers$Ht_int > q[4] + iqr | eucaliptos_imputados_comp_no_outliers$Ht_int < q[2] - iqr
+table(casos_extremos_iqr)
+
+#Se eliminan los valores que quedan fuera del rango IQR
+Ht_criterio_iqr <- eucaliptos_imputados_comp_no_outliers$Ht_int[!casos_extremos_iqr]
+summary(Ht_criterio_iqr)
+hist(Ht_criterio_iqr)
+boxplot(eucaliptos_imputados_comp_no_outliers$Ht_int, main="eucaliptos_imputados        iqr", Ht_criterio_iqr)
+#Se eliminaron 26 entradas. Quedan 616 para utilizar
+```
+
+### Análisis exploratorio de relación entre variables
+
+Se hizo un análisis de componentes principales para observar cómo se distribuen los datos y si existe algún tipo de patrón. Para esto se subsetearon sólo las columnas con valores numéricos con las características de interés.
+
+```{r}
+Eucalyptus_subset = eucaliptos_imputados_comp_no_outliers[, c(13:15)]
+summary(Eucalyptus_subset)
+Eu_pca <- prcomp(Eucalyptus_subset, center = T, scale. = T)
+summary(Eu_pca)
+#install.packages("ggfortify")
+library("ggfortify")
+autoplot(Eu_pca, data = Eucalyptus_subset, colour= "red")
+Eu_pca$rotation
+
+```
+
+Se pudo establecer que con dos dimensiones se obtiene solamente 0.5852 de la información (Cumulative Proportion), lo que indicaría que sería un mal modelo tomar sólo dos dimensiones; se deberían tomar 3 para estar en valores de información mayores al 70% ( 0.7997). Por otro lado, en el gráfico PCA 1 vs PCA 2 no se observ que los datos se agrupen de alguna manera en particular
+
+Para continuar examinando los datos se decidió hacer un análisis de *clusters*. En primer lugar se realizó un K-medias donde se estableció usar en principio un k de 8 por como se observó que se la distribución los datos en el PCA.
+
+```{r}
+k <- 8
+clusters <- kmeans(x = Eucalyptus_subset, centers = k)
+#clusters
+#table(clusters$cluster)
+
+#install.packages(c( "factoextra", "fpc", "cluster"))
+library("cluster")
+library("factoextra")
+fviz_cluster(clusters, data = Eucalyptus_subset)
+
+```
+
+Para evaluar si el K es acorde se decidió hacer un analisis de codo variando los K.
+
+```{r}
+wss <- c()
+ks <- 2:10
+for(k in ks){
+  clusters <- kmeans(x = Eucalyptus_subset, centers = k)
+  wss      <- c(wss, clusters$tot.withinss)
+}
+plot(ks, wss, type="b", xlab = "k", ylab="Suma de la varianza intra-cluster")
+```
+
+A continuación se realizó un *clustering* jerárquino. Al ver el árbol se determinó el corte en 25.
+
+```{r}
+distancia <- dist(Eucalyptus_subset)
+arbol <- hclust(d = distancia, method = "average")
+plot(arbol, hang = -1)
+abline(h = 25, col = "red", lty="dashed")
+clusters_25 <-cutree(arbol, h = 25)
+plot(clusters_25, hang = -1)
+
+```
+
+Si bien es posible generar agrupaciones de los datos y pareciera que se pueden formar entre 5 y 7 clusters, este análisis exploratorio inicial no permite sacar conclusiones sobre las preguntas biológicas planteadas inicialmente.
+
+A fin de interpretar si el *clustering* realizado es correcto dedicimos hacer una análisis de Silhouette. Este análisis estima cuán parecido es cada indiviuo al conjunto al que se lo asignó siendo 1 el valor de máxima identidad.
+
+```{r}
+#Calculemos el silhouette
+s <- silhouette(clusters$cluster, dist(Eucalyptus_subset))
+plot(s)
+```
+
+Se puede ver que el grupo dos tiene individuos más parecidos entre sí estando entre 0.6 y 0.8, mientras que los demás grupos presentan valores menores.
+
+#### Transformaciones de variables
+
+Se transformaron las variables *Utility* y *Sp* a valores numéricos para ser utilizadas en gráficos de coordenadas. Así se pueden observar posibles relaciones lineales entre *Utility* y las variables de interés *DBH*, altura de los árboles y superviviencia con Utilidad, especies y número de lote de semilla.
+
+```{r}
+#View(eucaliptos_imputados_comp_no_outliers)
+eucaliptos_imputados_comp_no_outliers[,12] <- ifelse(eucaliptos_imputados_comp_no_outliers[,12]== "none", 1, ifelse(eucaliptos_imputados_comp_no_outliers[,12] == "low", 2, ifelse(eucaliptos_imputados_comp_no_outliers[,12] == "average", 3, ifelse(eucaliptos_imputados_comp_no_outliers[,12] == "best", 5, 4))))
+eucaliptos_imputados_comp_no_outliers$Sp_Numero <-as.numeric(as.factor(eucaliptos_imputados_comp_no_outliers$Sp))
+#View(eucaliptos_imputados_comp_no_outliers)
+
+```
+
+| "Utility" valores categóricos | "Utility" convertido a valores numéricos |
+|:-----------------------------:|:----------------------------------------:|
+|             none              |                    1                     |
+|              low              |                    2                     |
+|            average            |                    3                     |
+|             good              |                    4                     |
+|             best              |                    5                     |
+
+: Tabla 2
+
+|     Especie     | Número asignado |
+|:---------------:|:---------------:|
+| E. agglomerata  |        1        |
+|  E. amplifolia  |        2        |
+| E. brookeriana  |        3        |
+| E. bot.x salina |        4        |
+|  E. coccifera   |        5        |
+|   E. cordata    |        6        |
+|    E. elata     |        7        |
+|  E. fastigata   |        8        |
+| E. fraximoides  |        9        |
+|  E. johnstonni  |       10        |
+| E. kartzoffiana |       11        |
+| E. macrorhyncha |       12        |
+|  E. mannifera   |       13        |
+|  E. niphophila  |       14        |
+|    E. nitens    |       15        |
+|    E. nitida    |       16        |
+|   E. obliqua    |       17        |
+|    E. ovata     |       18        |
+|  E. pauciflora  |       19        |
+|  E. pulchella   |       20        |
+|   E. radiata    |       21        |
+|   E. regnants   |       22        |
+|   E. robusta    |       23        |
+|   E. sieberi    |       24        |
+|   E. smithii    |       25        |
+
+: Tabla 3
+
+### Relación entre variables de interés y utilidad
+
+Para estudiar si existián lotes de semillas que presentaran mayor utilidad se realizó un gráfico de dispersión entre número de lote (*PMCno*) contra la variable *utility*.
+
+```{r}
+plot(eucaliptos_imputados_comp_no_outliers$PMCno, eucaliptos_imputados_comp_no_outliers$Utility, main= "Nro de lote vs Utilidad", xlab = "Nro. de lote", ylab="Utilidad")
+```
+
+En el gráfico se puede observar que no hay un claro lote de semillas que presente siempre una utilidad máxima, comportándose todos de manera similar.
+
+A continuación se evaluó si el diametro a la base (*DBH*), la variable de supervivencia (*Surv*) o la altura (*Ht*) correlacionan con la utilidad para la conservación de los suelos.
+
+```{r}
+plot(eucaliptos_imputados_comp_no_outliers$DBH_int, eucaliptos_imputados_comp_no_outliers$Utility, main= "DBH vs Utilidad", xlab = "DBH", ylab="Utilidad")
+plot(eucaliptos_imputados_comp_no_outliers$Surv_int, eucaliptos_imputados_comp_no_outliers$Utility, main= "Supervivencia vs Utilidad", xlab = "Supervivencia", ylab="Utilidad")
+plot(eucaliptos_imputados_comp_no_outliers$Ht_int, eucaliptos_imputados_comp_no_outliers$Utility, main= "Altura de árboles vs Utilidad", xlab = "Altura de árboles", ylab="Utilidad")
+
+```
+
+Se pudo observar que no hay una relación entre supervivencia y utilidad. Pero que sí existe relación entre *DBH* y *Ht* con la utilidad. Finalmente para analizar qué especies presentan alta utilidad decidimos graficar utility vs especies.
+
+```{r}
+plot(eucaliptos_imputados_comp_no_outliers$Sp_Numero, eucaliptos_imputados_comp_no_outliers$Utility, main= "Especies vs Utilidad", xlab = "Nro. de especie", ylab="Utilidad")
+```
+
+Se determinó que de las 25 especies disponibles en el dataset tan sólo 13 (ie: 2,3,6,8,9,15,16,17,18,19,20,22 y 24) tienen la capacidad de alcanzar las mejores utilidades (*best*). De todas formas la mayoria de estas especies también pueden dar bajas utilidades. No obstante la especie n°2 (*e. amplifolia*) siempre presenta buenos rendimientos (*best*, *good* y *average*).
+
+------------------------------------------------------------------------
+
+## Discusión y Perspectivas futuras
+
+En el presente trabajo nos fue posible analizar una base de datos de *Eucalyptus* obtenido desde Kaggle([Información disponible](https://www.kaggle.com/datasets/ishadss/eucalyptus)). En un primer lugar debimos explorar los datos disponibles para determinar el tratamiento necesario. Luego se eliminaron valores atípicos y se imputaron aquellos faltantes en variables de interés. Una vez establecido el dataset de trabajo, se realizó un análisis exploratorio para ver cómo se comportaban los datos y qué información nos podían dar. Finalmente se respondieron las tres preguntas biológicas establecidas como disparador del reporte. En lo que respecta a los resultados obtenidos, se pudo determinar que no hay lotes de semillas que de manera inequívoca presenten siempre alta utilidad. Por otro lado, que el valor de DBH es proporcional a la utilidad y, aunque falta más análisis, podría servir como un predictor. Finalmente, encontramos especies recomendadas para aumentar la conservación de los suelos, siendo eucalyptus amplifolia la de mejor desempeño; a su vez pudo observarse que *E. agglomerata*, *E. kartzoffiana*, *E. mannifera* y *E. smithii* presentaron una utilidad baja.
+
+------------------------------------------------------------------------
+
+## Referencias
+
+-   *Bulloch, B., 1994. Eucalyptus species selection for soil conservation in seasonally dry hill country - twelfth year assessment. Biological Conservation, 67(3), p.285.*
+-   *McQueen, R. J.; Thomson, K., 1996.Machine Learning Applied to Fourteen Agricultural Datasets. Research Report, University of Waikato, p. 17-29*
